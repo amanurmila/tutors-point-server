@@ -24,17 +24,16 @@ app.use(cookieParser());
 
 // verify token hook / middleware
 const verifyToken = (req, res, next) => {
-  const token = req?.cookies?.token;
-  // console.log(token);
-  if (!token) {
-    return res.status(401).send({ message: "unAuthorized access" });
+  if (!req.headers.authorization) {
+    return res.status(401).send({ message: "Unauthorized Access" });
   }
+  const token = req.headers.authorization.split(" ")[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
-      return res.status(401).send({ message: "Unauthorized access" });
+      return res.status(401).send({ message: "Unauthorized Access" });
     }
-    req.user = decoded;
+    req.decoded = decoded;
     next();
   });
 };
@@ -67,25 +66,11 @@ async function run() {
 
     //. Auth related APIs [JWT token]--//
     app.post("/jwt", async (req, res) => {
-      // console.log("JWT request received");
-
       const user = req.body;
-      if (!user.email) {
-        return res.status(400).send({ message: "Email is required" });
-      }
-
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "5h",
+        expiresIn: "10h",
       });
-
-      res
-        .cookie("token", token, {
-          httpOnly: true,
-          // secure: false, // set to true only if you're using HTTPS
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        })
-        .send({ success: true });
+      res.send({ token });
     });
 
     // clear token
