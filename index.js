@@ -38,7 +38,7 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.0uhyg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.2fdwk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -51,18 +51,15 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
     // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
-    // console.log(
-    //   "Pinged your deployment. You successfully connected to MongoDB!"
-    // );
+    await client.db("admin").command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
 
     // Database and collections sections
-    const jobsCollection = client.db("tutorsDB").collection("jobs");
-    const jobApplicationCollection = client
-      .db("tutorsDB")
-      .collection("job_applications");
+    const userCollection = client.db("tutorsDB").collection("users");
 
     //. Auth related APIs [JWT token]--//
     app.post("/jwt", async (req, res) => {
@@ -73,45 +70,49 @@ async function run() {
       res.send({ token });
     });
 
-    // clear token
-    app.post("/logout", (req, res) => {
-      res
-        .clearCookie("token", {
-          httpOnly: true,
-          secure: false, // set true for https
-        })
-        .send({ success: true });
-    });
     // . ends here              //
 
     //----------------- All APIs -----------------//
-    app.get("/job-application", verifyToken, async (req, res) => {
-      const email = req.query.email;
-      const query = { applicant_email: email };
 
-      // check token
-      // console.log(req.cookies.token);
-      if (req.user.email !== req.query.email) {
-        return res.status(403).send({ message: "forbidden access" });
+    // User management APIs
+    app.post("/users", async (req, res) => {
+      const data = req.body;
+      const email = data.email;
+
+      if (!email) {
+        return res
+          .status(400)
+          .send({ success: false, message: "Email is required" });
       }
 
-      const result = await jobApplicationCollection.find(query).toArray();
-
-      // fokira way to aggregate data
-      for (const application of result) {
-        // console.log(application.job_id)
-        const query1 = { _id: new ObjectId(application.job_id) };
-        const job = await jobsCollection.findOne(query1);
-        if (job) {
-          application.title = job.title;
-          application.location = job.location;
-          application.company = job.company;
-          application.company_logo = job.company_logo;
+      try {
+        // Check if a user with the given email already exists
+        const existingUser = await userCollection.findOne({ email });
+        if (existingUser) {
+          return res
+            .status(409) // Conflict HTTP status code
+            .send({
+              success: false,
+              message: "Email already exists in the database",
+            });
         }
-      }
 
-      res.send(result);
+        // If email is unique, proceed to insert the user
+        const result = await userCollection.insertOne(data);
+        res.send({ success: true, message: "User added successfully", result });
+      } catch (error) {
+        console.error("Error inserting user:", error);
+        res
+          .status(500)
+          .send({ success: false, message: "Internal Server Error" });
+      }
     });
+
+    app.get("/users", async (req, res) => {
+      const data = await userCollection.find().toArray();
+      res.send(data);
+    });
+
     //--------------------------------------------//
   } finally {
     // Ensures that the client will close when you finish/error
