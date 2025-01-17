@@ -60,6 +60,7 @@ async function run() {
 
     // Database and collections sections
     const userCollection = client.db("tutorsDB").collection("users");
+    const sessionCollection = client.db("tutorsDB").collection("sessions");
 
     //. Auth related APIs [JWT token]--//
     app.post("/jwt", async (req, res) => {
@@ -74,7 +75,34 @@ async function run() {
 
     //----------------- All APIs -----------------//
 
-    // User management APIs
+    // Session Management APIs:-->
+    app.get("/sessions/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { tutorEmail: email };
+      const result = await sessionCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/sessions", async (req, res) => {
+      const session = req.body;
+      const result = await sessionCollection.insertOne(session);
+      res.send(result);
+    });
+
+    // User management APIs:-->
+
+    app.get("/users", async (req, res) => {
+      const data = await userCollection.find().toArray();
+      res.send(data);
+    });
+
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
     app.post("/users", async (req, res) => {
       const data = req.body;
       const email = data.email;
@@ -108,11 +136,6 @@ async function run() {
       }
     });
 
-    app.get("/users", async (req, res) => {
-      const data = await userCollection.find().toArray();
-      res.send(data);
-    });
-
     //--------------------------------------------//
   } finally {
     // Ensures that the client will close when you finish/error
@@ -122,9 +145,9 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Job is falling from the sky");
+  res.send("Tutors is ready to do work...");
 });
 
 app.listen(port, () => {
-  console.log(`Job is waiting at: ${port}`);
+  console.log(`Tutors are waiting at: ${port}`);
 });
