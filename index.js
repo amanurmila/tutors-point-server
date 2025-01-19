@@ -344,6 +344,68 @@ async function run() {
       }
     });
 
+    app.get("/materials/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { tutorEmail: email };
+
+      try {
+        const result = await materialsCollection.find(query).toArray();
+        if (result.length === 0) {
+          return res
+            .status(404)
+            .json({ message: "No materials found for this tutor." });
+        }
+        res.status(200).send(result);
+      } catch (error) {
+        console.error("Error fetching materials:", error);
+        res.status(500).json({ error: "Failed to fetch materials." });
+      }
+    });
+
+    app.patch("/materials/:id", async (req, res) => {
+      const id = req.params.id;
+      const { title, driveLink, image } = req.body;
+
+      const updateData = {};
+      if (title) updateData.title = title;
+      if (driveLink) updateData.driveLink = driveLink;
+      if (image) updateData.image = image;
+
+      try {
+        const result = await userCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updateData }
+        );
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating material:", error);
+        res.status(500).send({ error: "Failed to update material." });
+      }
+    });
+
+    app.delete("/materials/:id", async (req, res) => {
+      const { id } = req.params;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid material ID" });
+      }
+
+      try {
+        const result = await materialsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: "Material not found" });
+        }
+
+        res.status(200).json({ message: "Material deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting material:", error);
+        res.status(500).json({ error: "Failed to delete material." });
+      }
+    });
+
     // User Management APIs:-->
     app.get("/users", async (req, res) => {
       const { search } = req.query;
