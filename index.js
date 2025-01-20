@@ -1,8 +1,8 @@
 // npx nodemon index.js
 const express = require("express");
 const cors = require("cors");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const jwt = require("jsonwebtoken");
-const cookieParser = require("cookie-parser");
 const app = express();
 require("dotenv").config();
 const port = process.env.PORT || 5000;
@@ -20,7 +20,6 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(cookieParser());
 
 // verify token hook / middleware
 const verifyToken = (req, res, next) => {
@@ -502,6 +501,25 @@ async function run() {
         res
           .status(500)
           .send({ success: false, message: "Internal Server Error" });
+      }
+    });
+
+    // Payment Intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { amount } = req.body;
+
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount * 100, // Amount in cents
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      } catch (error) {
+        res.status(500).send({ error: error.message });
       }
     });
 
