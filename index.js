@@ -1,10 +1,11 @@
 // npx nodemon index.js
 const express = require("express");
 const cors = require("cors");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const app = express();
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
@@ -20,6 +21,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 // verify token hook / middleware
 const verifyToken = (req, res, next) => {
@@ -61,6 +63,7 @@ async function run() {
     const userCollection = client.db("tutorsDB").collection("users");
     const sessionCollection = client.db("tutorsDB").collection("sessions");
     const materialsCollection = client.db("tutorsDB").collection("materials");
+    const bookedSessionsCollection = client.db("tutorsDB").collection("booked");
 
     //. Auth related APIs [JWT token]--//
     app.post("/jwt", async (req, res) => {
@@ -74,6 +77,75 @@ async function run() {
     // . ends here              //
 
     //----------------- All APIs -----------------//
+
+    // Booked Session APIs:-->
+    app.post("/book-session", async (req, res) => {
+      const { sessionId, studentEmail, registrationFee } = req.body;
+
+      try {
+        const session = await sessionCollection.findOne({
+          _id: new ObjectId(sessionId),
+        });
+
+        if (!session) {
+          return res.status(404).json({ error: "Session not found" });
+        }
+
+        // For free sessions, directly book
+        if (registrationFee === 0) {
+          await bookedSessionsCollection.insertOne({
+            sessionId,
+            studentEmail,
+            tutorEmail: session.tutorEmail,
+            status: "Booked",
+            bookedAt: new Date(),
+          });
+          return res
+            .status(200)
+            .json({ message: "Session booked successfully!" });
+        }
+
+        // For paid sessions, prepare Stripe payment intent
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: registrationFee * 100, // Stripe requires amount in cents
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.status(200).json({ clientSecret: paymentIntent.client_secret });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to process booking" });
+      }
+    });
+
+    app.post("/get-session-details", async (req, res) => {
+      const { sessionId } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ error: "Session ID is required." });
+      }
+
+      // Fetch session details from your database
+      const sessionDetails = await sessionCollection.findOne({
+        _id: new ObjectId(sessionId),
+      });
+
+      if (!sessionDetails) {
+        return res.status(404).json({ error: "Session not found." });
+      }
+
+      // Generate Stripe Payment Intent (example code)
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: sessionDetails.registrationFee * 100, // Convert to cents
+        currency: "usd",
+      });
+
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        sessionDetails,
+      });
+    });
 
     // Session Management APIs:-->
     app.get("/sessions", async (req, res) => {
@@ -501,25 +573,6 @@ async function run() {
         res
           .status(500)
           .send({ success: false, message: "Internal Server Error" });
-      }
-    });
-
-    // Payment Intent
-    app.post("/create-payment-intent", async (req, res) => {
-      const { amount } = req.body;
-
-      try {
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: amount * 100, // Amount in cents
-          currency: "usd",
-          payment_method_types: ["card"],
-        });
-
-        res.send({
-          clientSecret: paymentIntent.client_secret,
-        });
-      } catch (error) {
-        res.status(500).send({ error: error.message });
       }
     });
 
