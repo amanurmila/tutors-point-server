@@ -82,6 +82,30 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/homeSessions", async (req, res) => {
+      try {
+        // Query the database for approved sessions and limit the results to 6
+        const approvedSessions = await sessionCollection
+          .find({ status: "approved" }) // Filter for status: "approved"
+          .limit(6) // Limit to 6 items
+          .toArray(); // Convert to an array
+
+        // Send the result as a response
+        res.status(200).send(approvedSessions);
+      } catch (error) {
+        // Handle errors
+        console.error("Error fetching sessions:", error);
+        res.status(500).send({ error: "Failed to fetch sessions" });
+      }
+    });
+
+    app.get("/session/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const session = await sessionCollection.findOne(query);
+      res.send(session);
+    });
+
     app.get("/sessions/:email", async (req, res) => {
       const email = req.params.email;
       const query = { tutorEmail: email };
