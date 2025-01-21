@@ -431,6 +431,11 @@ async function run() {
     });
 
     // Material Management APIs-->
+    app.get("/materials", async (req, res) => {
+      const result = await materialsCollection.find().toArray();
+      res.send(result);
+    });
+
     app.post("/materials", async (req, res) => {
       const material = req.body;
 
@@ -503,6 +508,13 @@ async function run() {
         console.error("Error deleting material:", error);
         res.status(500).json({ error: "Failed to delete material." });
       }
+    });
+
+    app.delete("/material/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await materialsCollection.deleteOne(query);
+      res.send(result);
     });
 
     // User Management APIs:-->
