@@ -80,42 +80,46 @@ async function run() {
 
     // Booked Session APIs:-->
     app.post("/book-session", async (req, res) => {
-      const { sessionId, studentEmail, registrationFee } = req.body;
+      const { sessionId, studentEmail, registrationFee, tutorEmail } = req.body;
 
       try {
+        console.log("Booking Data Received:", req.body);
+
         const session = await sessionCollection.findOne({
           _id: new ObjectId(sessionId),
         });
 
         if (!session) {
+          console.log("Session not found in the database.");
           return res.status(404).json({ error: "Session not found" });
         }
 
-        // For free sessions, directly book
-        if (registrationFee === 0) {
-          await bookedSessionsCollection.insertOne({
-            sessionId,
-            studentEmail,
-            tutorEmail: session.tutorEmail,
-            status: "Booked",
-            bookedAt: new Date(),
-          });
-          return res
-            .status(200)
-            .json({ message: "Session booked successfully!" });
-        }
+        console.log("Session Found:", session);
 
-        // For paid sessions, prepare Stripe payment intent
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: registrationFee * 100, // Stripe requires amount in cents
-          currency: "usd",
-          payment_method_types: ["card"],
+        const result = await bookedSessionsCollection.insertOne({
+          sessionId,
+          studentEmail,
+          tutorEmail,
+          registrationFee,
+          status: "Booked",
+          bookedAt: new Date(),
         });
 
-        res.status(200).json({ clientSecret: paymentIntent.client_secret });
+        console.log("Insert Result:", result);
+
+        if (result.insertedId) {
+          return res.status(200).json({
+            message: "Booking added successfully!",
+            insertedId: result.insertedId,
+          });
+        } else {
+          return res.status(500).json({
+            error: "Failed to insert booking data into the database.",
+          });
+        }
       } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Failed to process booking" });
+        console.error("Error in /book-session:", error);
+        res.status(500).json({ error: "Internal server error." });
       }
     });
 
@@ -528,6 +532,12 @@ async function run() {
       const email = req.params.email;
       const query = { email: email };
       const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/tutors", async (req, res) => {
+      const query = { role: "tutor" };
+      const result = await userCollection.find(query).toArray();
       res.send(result);
     });
 
