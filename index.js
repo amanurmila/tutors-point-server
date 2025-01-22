@@ -92,18 +92,15 @@ async function run() {
       const { sessionId, studentEmail, registrationFee, tutorEmail } = req.body;
 
       try {
-        console.log("Booking Data Received:", req.body);
 
         const session = await sessionCollection.findOne({
           _id: new ObjectId(sessionId),
         });
 
         if (!session) {
-          console.log("Session not found in the database.");
           return res.status(404).json({ error: "Session not found" });
         }
 
-        console.log("Session Found:", session);
 
         const result = await bookedSessionsCollection.insertOne({
           sessionId,
