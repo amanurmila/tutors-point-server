@@ -65,6 +65,15 @@ async function run() {
     const materialsCollection = client.db("tutorsDB").collection("materials");
     const bookedSessionsCollection = client.db("tutorsDB").collection("booked");
 
+    // Middleware for  admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const user = await userCollection.findOne({ email });
+      if (user.role !== "admin")
+        return res.status(403).send({ message: "Access denied! Admin only." });
+      next();
+    };
+
     //. Auth related APIs [JWT token]--//
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -164,6 +173,21 @@ async function run() {
           .find({ status: "approved" }) // Filter for status: "approved"
           .limit(6) // Limit to 6 items
           .toArray(); // Convert to an array
+
+        // Send the result as a response
+        res.status(200).send(approvedSessions);
+      } catch (error) {
+        // Handle errors
+        console.error("Error fetching sessions:", error);
+        res.status(500).send({ error: "Failed to fetch sessions" });
+      }
+    });
+    app.get("/approvedSessions", async (req, res) => {
+      try {
+        // Query the database for approved sessions and limit the results to 6
+        const approvedSessions = await sessionCollection
+          .find({ status: "approved" })
+          .toArray();
 
         // Send the result as a response
         res.status(200).send(approvedSessions);
@@ -428,6 +452,14 @@ async function run() {
         console.error(error);
         res.status(500).json({ error: "Failed to update session status" });
       }
+    });
+
+    // Booked Session Management APIs-->
+    app.get("/booked-sessions/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { studentEmail: email };
+      const result = await bookedSessionsCollection.find(query).toArray();
+      res.send(result);
     });
 
     // Material Management APIs-->
