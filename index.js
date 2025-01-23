@@ -65,6 +65,7 @@ async function run() {
     const materialsCollection = client.db("tutorsDB").collection("materials");
     const bookedSessionsCollection = client.db("tutorsDB").collection("booked");
     const reviewsCollection = client.db("tutorsDB").collection("reviews");
+    const notesCollection = client.db("tutorsDB").collection("notes");
 
     // Middleware for  admin
     const verifyAdmin = async (req, res, next) => {
@@ -87,6 +88,20 @@ async function run() {
     // . ends here              //
 
     //----------------- All APIs -----------------//
+
+    // Notes Management APIs:-->
+    app.post("/notes", async (req, res) => {
+      const data = req.body;
+      const result = await notesCollection.insertOne(data);
+      res.send(result);
+    });
+
+    app.get("/notes/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { userEmail: email };
+      const result = await notesCollection.find(query).toArray();
+      res.send(result);
+    });
 
     app.post("/get-session-details", async (req, res) => {
       const { sessionId } = req.body;
