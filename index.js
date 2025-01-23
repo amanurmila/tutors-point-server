@@ -103,6 +103,45 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/notes/:id", async (req, res) => {
+      const id = req.params.id;
+      try {
+        const result = await notesCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        if (result.deletedCount === 1) {
+          res.status(200).json({ message: "Note deleted successfully!" });
+        } else {
+          res.status(404).json({ message: "Note not found!" });
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to delete the note." });
+      }
+    });
+
+    // Route to update a note
+    app.put("/notes/:id", async (req, res) => {
+      const id = req.params.id;
+      const { title, description } = req.body;
+
+      try {
+        const result = await notesCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { title, description } }
+        );
+
+        if (result.matchedCount === 1) {
+          res.status(200).json({ message: "Note updated successfully!" });
+        } else {
+          res.status(404).json({ message: "Note not found!" });
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to update the note." });
+      }
+    });
+
     app.post("/get-session-details", async (req, res) => {
       const { sessionId } = req.body;
 
