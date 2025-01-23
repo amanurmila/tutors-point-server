@@ -64,6 +64,7 @@ async function run() {
     const sessionCollection = client.db("tutorsDB").collection("sessions");
     const materialsCollection = client.db("tutorsDB").collection("materials");
     const bookedSessionsCollection = client.db("tutorsDB").collection("booked");
+    const reviewsCollection = client.db("tutorsDB").collection("reviews");
 
     // Middleware for  admin
     const verifyAdmin = async (req, res, next) => {
@@ -86,48 +87,6 @@ async function run() {
     // . ends here              //
 
     //----------------- All APIs -----------------//
-
-    // Booked Session APIs:-->
-    app.post("/book-session", async (req, res) => {
-      const { sessionId, studentEmail, registrationFee, tutorEmail } = req.body;
-
-      try {
-
-        const session = await sessionCollection.findOne({
-          _id: new ObjectId(sessionId),
-        });
-
-        if (!session) {
-          return res.status(404).json({ error: "Session not found" });
-        }
-
-
-        const result = await bookedSessionsCollection.insertOne({
-          sessionId,
-          studentEmail,
-          tutorEmail,
-          registrationFee,
-          status: "Booked",
-          bookedAt: new Date(),
-        });
-
-        console.log("Insert Result:", result);
-
-        if (result.insertedId) {
-          return res.status(200).json({
-            message: "Booking added successfully!",
-            insertedId: result.insertedId,
-          });
-        } else {
-          return res.status(500).json({
-            error: "Failed to insert booking data into the database.",
-          });
-        }
-      } catch (error) {
-        console.error("Error in /book-session:", error);
-        res.status(500).json({ error: "Internal server error." });
-      }
-    });
 
     app.post("/get-session-details", async (req, res) => {
       const { sessionId } = req.body;
@@ -459,7 +418,101 @@ async function run() {
       res.send(result);
     });
 
-    // Material Management APIs-->
+    app.get("/sessionDetails/:id", async (req, res) => {
+      const { id } = req.params;
+
+      try {
+        // Convert the id to ObjectId
+        const query = { _id: new ObjectId(id) };
+        const sessionDetails = await sessionCollection.findOne(query);
+        console.log(sessionDetails);
+        if (!sessionDetails) {
+          return res.status(404).send({ message: "Session not found." });
+        }
+
+        res.send(sessionDetails);
+      } catch (error) {
+        console.error("Error fetching session details:", error);
+        res.status(500).send({ message: "Internal server error." });
+      }
+    });
+
+    app.post("/book-session", async (req, res) => {
+      const { sessionId, studentEmail, registrationFee, tutorEmail } = req.body;
+
+      try {
+        const session = await sessionCollection.findOne({
+          _id: new ObjectId(sessionId),
+        });
+
+        if (!session) {
+          return res.status(404).json({ error: "Session not found" });
+        }
+
+        const result = await bookedSessionsCollection.insertOne({
+          sessionId,
+          studentEmail,
+          tutorEmail,
+          registrationFee,
+          status: "Booked",
+          bookedAt: new Date(),
+        });
+
+        if (result.insertedId) {
+          return res.status(200).json({
+            message: "Booking added successfully!",
+            insertedId: result.insertedId,
+          });
+        } else {
+          return res.status(500).json({
+            error: "Failed to insert booking data into the database.",
+          });
+        }
+      } catch (error) {
+        console.error("Error in /book-session:", error);
+        res.status(500).json({ error: "Internal server error." });
+      }
+    });
+
+    // Review Management APIs:-->
+
+    app.get("/reviews/:sessionId", async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const reviews = await reviewsCollection.find({ sessionId }).toArray();
+        res.json(reviews);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to fetch reviews" });
+      }
+    });
+
+    // Endpoint to submit a review
+    app.post("/reviews", async (req, res) => {
+      try {
+        const { sessionId, reviewText, rating, studentId } = req.body;
+
+        // Validate that required fields are present
+        if (!sessionId || !reviewText || !rating) {
+          return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        const review = {
+          sessionId,
+          studentId: studentId || "Anonymous", // Set default studentId if not provided
+          reviewText,
+          rating,
+          timestamp: new Date(),
+        };
+
+        await reviewsCollection.insertOne(review);
+        res.status(201).json(review);
+      } catch (error) {
+        console.error(error); // Log the error to the console for debugging
+        res.status(500).json({ error: "Failed to save review" });
+      }
+    });
+
+    // Material Management APIs:-->
     app.get("/materials", async (req, res) => {
       const result = await materialsCollection.find().toArray();
       res.send(result);
