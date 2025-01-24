@@ -142,6 +142,8 @@ async function run() {
       }
     });
 
+    // Collecting Materials...:-->
+
     app.post("/get-session-details", async (req, res) => {
       const { sessionId } = req.body;
 
@@ -479,7 +481,6 @@ async function run() {
         // Convert the id to ObjectId
         const query = { _id: new ObjectId(id) };
         const sessionDetails = await sessionCollection.findOne(query);
-        console.log(sessionDetails);
         if (!sessionDetails) {
           return res.status(404).send({ message: "Session not found." });
         }
@@ -645,12 +646,64 @@ async function run() {
         res.status(500).json({ error: "Failed to delete material." });
       }
     });
+    app.get("/booked-session/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const query = { _id: new ObjectId(id) }; // Adjust for MongoDB ObjectId
+        const session = await bookedSessionsCollection.findOne(query);
+        if (!session) {
+          return res.status(404).send({ message: "Session not found." });
+        }
+        res.status(200).send(session);
+      } catch (error) {
+        console.error("Error fetching booked session:", error);
+        res.status(500).send({ error: "Failed to fetch booked session." });
+      }
+    });
 
     app.delete("/material/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await materialsCollection.deleteOne(query);
       res.send(result);
+    });
+
+    app.get("/materialDetails/:id", async (req, res) => {
+      const { id } = req.params;
+
+      try {
+        // Query with `sessionId` as a string (do not convert it to ObjectId)
+        const query = { sessionId: id };
+        const materials = await materialsCollection.find(query).toArray();
+
+        if (!materials.length) {
+          return res
+            .status(404)
+            .send({ message: "No materials found for this session." });
+        }
+
+        res.send(materials);
+      } catch (error) {
+        console.error("Error fetching session details:", error);
+        res.status(500).send({ message: "Internal server error." });
+      }
+    });
+
+    app.get("/materials/:email", async (req, res) => {
+      const email = req.params.email;
+      try {
+        const query = { tutorEmail: email };
+        const materials = await materialsCollection.find(query).toArray();
+        if (!materials.length) {
+          return res
+            .status(404)
+            .json({ message: "No materials found for this tutor." });
+        }
+        res.status(200).send(materials);
+      } catch (error) {
+        console.error("Error fetching materials:", error);
+        res.status(500).json({ error: "Failed to fetch materials." });
+      }
     });
 
     // User Management APIs:-->
