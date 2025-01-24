@@ -1,10 +1,9 @@
-// npx nodemon index.js
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const app = express();
-require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -12,11 +11,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // middleware
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      // "https://career-portal-ph.web.app",
-      // "https://career-portal-ph.web.app",
-    ], // can be multiple
+    origin: ["http://localhost:5173", "https://tutors-point.netlify.app"],
     credentials: true,
   })
 );
@@ -52,12 +47,12 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
 
     // Database and collections sections
     const userCollection = client.db("tutorsDB").collection("users");
@@ -648,9 +643,11 @@ async function run() {
     });
     app.get("/booked-session/:id", async (req, res) => {
       const { id } = req.params;
+      console.log(id);
       try {
-        const query = { _id: new ObjectId(id) }; // Adjust for MongoDB ObjectId
-        const session = await bookedSessionsCollection.findOne(query);
+        const query = { sessionId: new ObjectId(id) }; // Adjust for MongoDB ObjectId
+        const session = await materialsCollection.find(query).toArray();
+        console.log(session);
         if (!session) {
           return res.status(404).send({ message: "Session not found." });
         }
