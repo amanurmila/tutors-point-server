@@ -580,7 +580,7 @@ async function run() {
       }
     });
 
-    app.get("/materials/:email", async (req, res) => {
+    app.get("/materials/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { tutorEmail: email };
 
